@@ -1,13 +1,9 @@
 package com.example.jpos_client;
 
-import org.jpos.iso.ISOException;
-import org.jpos.iso.ISOMsg;
-import org.jpos.iso.ISOUtil;
-import org.jpos.iso.MUX;
+import org.jpos.iso.*;
+import org.jpos.iso.packager.GenericPackager;
 import org.jpos.q2.Q2;
 import org.jpos.q2.iso.QMUX;
-import org.jpos.tlv.GenericTagSequence;
-import org.jpos.tlv.LiteralTagValue;
 import org.jpos.util.NameRegistrar;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
@@ -46,20 +42,28 @@ public class JposClientApplication {
 
 	@GetMapping("echo")
 	public String echo() throws ISOException {
+		ISOPackager packager = new GenericPackager("cfg/packager/iso87ascii-binary-bitmap.xml");
+
 		ISOMsg msg = new ISOMsg();
+		msg.setPackager(packager);
 
 		msg.setMTI("0800");
 		msg.set(11, "000001");
+		msg.set(70, "301");
 
-		GenericTagSequence tagSequence = new GenericTagSequence();
-		tagSequence.add(new LiteralTagValue("0012", "19960930000000"));
-		tagSequence.add(new LiteralTagValue("0165", "M"));
-
-		ISOMsg field48 = new ISOMsg(48);
-		tagSequence.writeTo(field48);
-		msg.set(field48);
+		byte[] packedMessage = msg.pack();
+		System.out.println("Packed message: " + ISOUtil.hexString(packedMessage));
 
 		ISOMsg respMsg = mux.request(msg, 30000);
+
+		respMsg.setPackager(packager);
+		System.out.println("Response message: ");
+		for(int i = 0; i <= respMsg.getMaxField(); i++) {
+			if (respMsg.hasField(i)) {
+				System.out.println(i + ": " + respMsg.getString(i));
+			}
+		}
+
 		return respMsg.toString();
 	}
 
